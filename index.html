@@ -6,16 +6,16 @@
     <title>Team Generator</title>
     <style>
         :root {
-            --primary-color: #4a90e2;
+            --primary-color: #2ecc71;
             --secondary-color: #95a5a6;
-            --cheat-color: #8e44ad; /* Фіолетовий сигнал */
             --bg-color: #f4f7f6;
             --card-bg: #ffffff;
             --text-color: #333;
+            --fair-color: #7f8c8d; /* Сірий колір для режиму "Чесна гра" */
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
@@ -47,6 +47,7 @@
             resize: vertical;
             font-size: 16px;
             box-sizing: border-box;
+            font-family: monospace;
         }
 
         textarea:focus { border-color: var(--primary-color); outline: none; }
@@ -72,15 +73,17 @@
             border-radius: 8px;
             cursor: pointer;
             width: 100%;
-            transition: background 0.3s, transform 0.1s;
+            transition: all 0.3s;
             font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        button:hover { background-color: #357abd; }
-        
-        /* Анімація активації */
-        button.cheat-active {
-            background-color: var(--cheat-color) !important;
-            transform: scale(1.05);
+        button:hover { background-color: #27ae60; }
+
+        /* Стиль кнопки, коли увімкнено чесний режим */
+        button.fair-mode {
+            background-color: var(--fair-color) !important;
+            border: 2px dashed #bdc3c7;
         }
 
         #result-area {
@@ -95,7 +98,7 @@
 
         .team-card {
             background: white;
-            border-left: 5px solid var(--primary-color);
+            border-top: 5px solid var(--primary-color);
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -105,43 +108,35 @@
             box-sizing: border-box;
         }
 
-        .team-card.reserve { border-left-color: var(--secondary-color); background-color: #f9f9f9; }
+        .team-card.reserve { border-top-color: var(--secondary-color); background-color: #f9f9f9; }
         
         .team-card h3 {
             margin-top: 0;
-            color: var(--primary-color);
+            color: #2c3e50;
             border-bottom: 1px solid #eee;
             padding-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-        .team-card.reserve h3 { color: var(--secondary-color); }
-
-        .info-badge {
-            font-size: 0.75em;
-            background: #eee;
-            padding: 2px 8px;
-            border-radius: 10px;
-            color: #666;
-            font-weight: normal;
+            font-size: 1.1em;
         }
 
+        .info-badge { font-size: 0.75em; background: #eee; padding: 2px 8px; border-radius: 10px; color: #666; font-weight: normal; }
         .team-card ul { list-style-type: none; padding: 0; margin: 0; }
-        .team-card li { padding: 8px 0; border-bottom: 1px dotted #eee; }
+        .team-card li { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
         .team-card li:last-child { border-bottom: none; }
 
         .stats { margin-top: 10px; font-size: 0.9em; color: #666; }
-        .error { color: red; margin-top: 10px; }
+        .error { color: #e74c3c; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>🛠 Генератор Команд</h1>
+    <h1>Team Generator</h1>
 
     <div class="container">
         <p>Список учасників:</p>
-        <textarea id="namesInput" placeholder="Введіть імена..."></textarea>
+        <textarea id="namesInput" placeholder="Вставте список імен..."></textarea>
 
         <div class="settings-grid">
             <div class="input-group">
@@ -154,7 +149,7 @@
             </div>
         </div>
 
-        <button id="genButton" onclick="processData()">Сформувати</button>
+        <button id="genButton" onclick="processData()">Сформувати команди</button>
         
         <div id="statusMsg" class="stats"></div>
         <div id="errorMsg" class="error"></div>
@@ -163,47 +158,50 @@
     <div id="result-area"></div>
 
     <script>
-        // --- CONFIGURATION ---
-        // Тільки ці двоє будуть разом, коли активовано чит
-        const _vipSquad = [
-            "Ivanka784",
-            "I_Oleg_I"
-        ];
-        
-        // --- CHEAT LOGIC ---
-        let _cheatEnabled = false;
-        let _keySequence = [];
+        // ==========================================
+        // НАЛАШТУВАННЯ
+        // ==========================================
+        const _vipConfig = ["Ivanka784", "I_Oleg_I"];
+        let _luckChance = 0.6; // 60% шанс підкрутки за замовчуванням
 
+        // Змінна для вимкнення переваг
+        let _fairModeActive = false;
+
+        // ==========================================
+        // КОД ДЛЯ ДЕАКТИВАЦІЇ (ЛІВО-ЛІВО-ЛІВО)
+        // ==========================================
+        let _leftKeySequence = [];
+        
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowRight') {
-                _keySequence.push(e.key);
-                
-                if (_keySequence.length === 3) {
-                    activateCheat();
-                    _keySequence = [];
+            if (e.key === 'ArrowLeft') {
+                _leftKeySequence.push(e.key);
+                // Якщо натиснули 3 рази
+                if (_leftKeySequence.length === 3) {
+                    toggleFairMode();
+                    _leftKeySequence = []; // Скидаємо
                 }
             } else {
-                _keySequence = [];
+                _leftKeySequence = []; // Скидаємо, якщо натиснули щось інше
             }
         });
 
-        function activateCheat() {
-            _cheatEnabled = true;
+        function toggleFairMode() {
+            _fairModeActive = true; // Вмикаємо чесний режим (вимикаємо підкрутку)
             const btn = document.getElementById('genButton');
             
-            // Блимання кнопки
-            const originalText = btn.innerText;
-            btn.classList.add('cheat-active');
-            btn.innerText = "Ready..."; 
+            // Візуальний ефект (сіріє кнопка)
+            btn.classList.add('fair-mode');
+            const oldText = btn.innerText;
+            btn.innerText = "Fair Play Mode Activated";
             
             setTimeout(() => {
-                btn.classList.remove('cheat-active');
-                btn.innerText = originalText;
-            }, 1000);
+                btn.innerText = "Сформувати команди";
+            }, 2000);
         }
 
-        // --- MAIN LOGIC ---
-
+        // ==========================================
+        // ЛОГІКА
+        // ==========================================
         function processData() {
             const input = document.getElementById('namesInput').value;
             const targetTeams = parseInt(document.getElementById('teamsCount').value);
@@ -219,62 +217,68 @@
             let rawNames = input.split('\n').map(name => name.trim()).filter(name => name !== '');
 
             if (rawNames.length === 0) {
-                errorMsg.innerText = 'Список порожній.';
+                errorMsg.innerText = 'Список імен порожній.';
                 return;
             }
 
-            let teams = Array.from({ length: targetTeams }, () => []);
-            let remainingNames = [...rawNames];
+            let priorityQueue = [];
+            let standardQueue = [];
+
+            // Визначаємо реальний шанс успіху
+            // Якщо увімкнено "Чесний режим" (_fairModeActive), шанс стає 0
+            const currentLuck = _fairModeActive ? 0 : _luckChance;
+
+            rawNames.forEach(name => {
+                const isVip = _vipConfig.some(vip => name.toLowerCase().includes(vip.toLowerCase()));
+                
+                if (isVip) {
+                    // Кидаємо кубик з урахуванням режиму
+                    if (Math.random() < currentLuck) {
+                        priorityQueue.push(name);
+                    } else {
+                        standardQueue.push(name);
+                    }
+                } else {
+                    standardQueue.push(name);
+                }
+            });
+
+            shuffleArray(priorityQueue);
+            shuffleArray(standardQueue);
+
+            let masterList = [...priorityQueue, ...standardQueue];
             
-            // --- ЛОГІКА ЧИТУ ---
-            if (_cheatEnabled) {
-                let squadMembers = [];
-                
-                // Витягуємо VIP-ів
-                remainingNames = remainingNames.filter(name => {
-                    const isVip = _vipSquad.some(vip => name.toLowerCase().includes(vip.toLowerCase()));
-                    if (isVip) {
-                        squadMembers.push(name);
-                        return false; 
-                    }
-                    return true;
-                });
+            const totalSlots = targetTeams * targetSize;
+            let activePlayers = [];
+            let reservePlayers = [];
 
-                // Якщо знайшли VIP-ів, садимо їх в одну випадкову команду
-                if (squadMembers.length > 0) {
-                    const randomTeamIndex = Math.floor(Math.random() * targetTeams);
-                    teams[randomTeamIndex].push(...squadMembers);
-                }
-                
-                // Вимикаємо чит після одного разу
-                _cheatEnabled = false; 
+            if (masterList.length > totalSlots) {
+                activePlayers = masterList.slice(0, totalSlots);
+                reservePlayers = masterList.slice(totalSlots);
+            } else {
+                activePlayers = masterList;
             }
 
-            // --- ЗАПОВНЕННЯ РЕШТОЮ ---
-            shuffleArray(remainingNames);
+            shuffleArray(activePlayers);
 
-            let currentTeamIndex = 0;
-            while (remainingNames.length > 0) {
-                let added = false;
-                for (let i = 0; i < targetTeams; i++) {
-                    let teamIdx = (currentTeamIndex + i) % targetTeams;
-                    
-                    if (teams[teamIdx].length < targetSize) {
-                        teams[teamIdx].push(remainingNames.shift());
-                        added = true;
-                        currentTeamIndex = teamIdx + 1; 
-                        break;
+            // Розподіл
+            let teams = Array.from({ length: targetTeams }, () => []);
+            
+            activePlayers.forEach((player, index) => {
+                const teamIndex = index % targetTeams;
+                if (teams[teamIndex].length < targetSize) {
+                    teams[teamIndex].push(player);
+                } else {
+                    for (let i = 0; i < targetTeams; i++) {
+                        if (teams[i].length < targetSize) {
+                            teams[i].push(player);
+                            break;
+                        }
                     }
                 }
-                if (!added) break; 
-            }
+            });
 
-            let reservePlayers = remainingNames;
-
-            // Перемішуємо всередині команд (для краси)
-            teams.forEach(team => shuffleArray(team));
-
-            // --- ВІДОБРАЖЕННЯ ---
+            // Вивід
             teams.forEach((team, index) => {
                 renderCard(`Команда ${index + 1}`, team, false, targetSize);
             });
@@ -283,12 +287,10 @@
                 renderCard(`Резерв`, reservePlayers, true, null);
             }
             
-            const totalPlayers = rawNames.length;
-            const totalSlots = targetTeams * targetSize;
-            if (totalPlayers > totalSlots) {
-                 statusMsg.innerHTML = `Учасників: ${totalPlayers}. Місць: ${totalSlots}. У запасі: ${reservePlayers.length}.`;
+            if (rawNames.length > totalSlots) {
+                statusMsg.innerText = `Всього: ${rawNames.length}. Місць: ${totalSlots}. В запасі: ${reservePlayers.length}.`;
             } else {
-                 statusMsg.innerHTML = `Учасників: ${totalPlayers}. Всі розподілені.`;
+                statusMsg.innerText = `Всього: ${rawNames.length}. Всі в грі.`;
             }
         }
 
@@ -300,32 +302,21 @@
         }
 
         function renderCard(title, members, isReserve, maxSize) {
-            const resultArea = document.getElementById('result-area');
             const card = document.createElement('div');
             card.className = isReserve ? 'team-card reserve' : 'team-card';
-
-            let badge = '';
-            if (maxSize) {
-                const current = members.length;
-                badge = `<span class="info-badge">${current}/${maxSize}</span>`;
-            } else {
-                badge = `<span class="info-badge">${members.length}</span>`;
-            }
-
+            let badge = maxSize ? `<span class="info-badge">${members.length}/${maxSize}</span>` : `<span class="info-badge">${members.length}</span>`;
+            
             let listHtml = '<ul>';
             if (members.length === 0) {
-                listHtml += '<li style="color:#999; font-style:italic;">Порожньо</li>';
+                listHtml += '<li style="color:#999; font-style:italic; padding:10px 0;">Немає учасників</li>';
             } else {
-                members.forEach(member => {
-                    listHtml += `<li>👤 ${member}</li>`;
-                });
+                members.forEach(member => listHtml += `<li>👤 ${member}</li>`);
             }
             listHtml += '</ul>';
 
             card.innerHTML = `<h3>${title} ${badge}</h3>${listHtml}`;
-            resultArea.appendChild(card);
+            document.getElementById('result-area').appendChild(card);
         }
     </script>
-
 </body>
 </html>
