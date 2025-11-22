@@ -184,28 +184,41 @@
         // ==========================================
         let _keySeqLeft = [];
         let _keySeqRight = [];
+        let _keySeqDown = [];
 
         document.addEventListener('keydown', (e) => {
-            // Логіка для ЛІВО (Green Mode)
+            // 1. ЛІВО х3 -> GREEN (Чесний)
             if (e.key === 'ArrowLeft') {
                 _keySeqLeft.push(e.key);
-                _keySeqRight = []; // скидаємо протилежну
+                _keySeqRight = []; _keySeqDown = []; // скидаємо інші
                 if (_keySeqLeft.length === 3) {
                     setMode('green');
                     _keySeqLeft = [];
                 }
             } 
-            // Логіка для ПРАВО (Red Mode)
+            // 2. ПРАВО х3 -> RED (Режим Бога 100%)
             else if (e.key === 'ArrowRight') {
                 _keySeqRight.push(e.key);
-                _keySeqLeft = []; // скидаємо протилежну
+                _keySeqLeft = []; _keySeqDown = [];
                 if (_keySeqRight.length === 3) {
                     setMode('red');
                     _keySeqRight = [];
                 }
-            } else {
+            } 
+            // 3. ВНИЗ х3 -> YELLOW (Стандарт 60/40)
+            else if (e.key === 'ArrowDown') {
+                _keySeqDown.push(e.key);
+                _keySeqLeft = []; _keySeqRight = [];
+                if (_keySeqDown.length === 3) {
+                    setMode('yellow');
+                    _keySeqDown = [];
+                }
+            }
+            else {
+                // Якщо натиснули щось інше - все скидається
                 _keySeqLeft = [];
                 _keySeqRight = [];
+                _keySeqDown = [];
             }
         });
 
@@ -244,7 +257,7 @@
                 return;
             }
 
-            // Визначаємо шанс підкрутки на основі кольору кульки
+            // Визначаємо шанс підкрутки на основі режиму
             let currentChance = 0.6; // Yellow default
             if (_currentMode === 'green') currentChance = 0;
             if (_currentMode === 'red') currentChance = 1.0;
@@ -257,8 +270,6 @@
                 
                 if (isVip) {
                     // Кидаємо кубик
-                    // Якщо режим червоний (1.0), умова завжди True
-                    // Якщо режим зелений (0), умова завжди False
                     if (Math.random() < currentChance) {
                         priorityQueue.push(name);
                     } else {
