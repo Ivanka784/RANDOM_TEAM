@@ -3,55 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Generator (Pro)</title>
+    <title>Team Generator (Debug Version)</title>
     <style>
         :root {
             --primary-color: #2ecc71;
-            --secondary-color: #95a5a6;
             --bg-color: #f4f7f6;
-            --card-bg: #ffffff;
             --text-color: #333;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-family: sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
-            margin: 0;
         }
 
-        h1 { margin-bottom: 20px; color: #2c3e50; }
-
-        /* ІНДИКАТОР */
-        .status-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            box-shadow: 0 0 5px rgba(0,0,0,0.2);
-            border: 3px solid rgba(255,255,255,0.8);
-            transition: all 0.3s ease;
-            z-index: 1000;
+        /* ІНДИКАТОР РЕЖИМУ */
+        .mode-panel {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-
-        .status-green { background-color: #27ae60; box-shadow: 0 0 15px #27ae60; } 
-        .status-yellow { background-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; } 
-        .status-red { background-color: #e74c3c; box-shadow: 0 0 20px #c0392b; animation: pulse 2s infinite; }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
+        .dot {
+            width: 15px; height: 15px; border-radius: 50%; display: inline-block;
+            border: 2px solid rgba(0,0,0,0.1);
         }
+        .dot-green { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+        .dot-yellow { background: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+        .dot-red { background: #e74c3c; box-shadow: 0 0 10px #e74c3c; animation: pulse 1s infinite alternate; }
+
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.2); } }
 
         .container {
-            background-color: var(--card-bg);
+            background-color: white;
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
@@ -61,286 +54,226 @@
         }
 
         textarea {
-            width: 100%;
-            height: 150px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            resize: vertical;
-            font-size: 16px;
-            box-sizing: border-box;
-            font-family: monospace;
+            width: 100%; height: 150px; padding: 10px; margin-bottom: 15px;
+            border: 2px solid #ddd; border-radius: 8px; font-size: 16px;
         }
 
-        textarea:focus { border-color: var(--primary-color); outline: none; }
-
-        .settings-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        .input-group { display: flex; flex-direction: column; }
-        .input-group label { margin-bottom: 5px; font-size: 14px; font-weight: bold; color: #555; }
-        .input-group input { padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        input[type="number"] { width: 60px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
 
         button {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s;
+            background-color: var(--primary-color); color: white; border: none;
+            padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%;
             font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
-        button:hover { background-color: #27ae60; }
+        button:hover { opacity: 0.9; }
 
-        #result-area {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 1000px;
-        }
-
-        .team-card {
-            background: white;
-            border-top: 5px solid var(--primary-color);
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            width: calc(50% - 15px);
+        /* ДІАГНОСТИКА */
+        .debug-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            font-size: 0.85em;
+            color: #555;
             text-align: left;
-            min-width: 250px;
-            box-sizing: border-box;
         }
 
-        .team-card.reserve { border-top-color: var(--secondary-color); background-color: #f9f9f9; }
-        
-        .team-card h3 {
-            margin-top: 0;
-            color: #2c3e50;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 1.1em;
-        }
-
-        .info-badge { font-size: 0.75em; background: #eee; padding: 2px 8px; border-radius: 10px; color: #666; font-weight: normal; }
-        .team-card ul { list-style-type: none; padding: 0; margin: 0; }
-        .team-card li { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-        .team-card li:last-child { border-bottom: none; }
-
-        .stats { margin-top: 10px; font-size: 0.9em; color: #666; }
-        .vip-msg { color: #e67e22; font-weight: bold; margin-top: 5px; font-size: 0.9em; min-height: 1.2em;}
-        .error { color: #e74c3c; margin-top: 10px; font-weight: bold; }
+        .result-area { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 20px; width: 100%; }
+        .card { background: white; border-top: 4px solid var(--primary-color); padding: 15px; width: 45%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left; }
+        .card.reserve { border-top-color: #95a5a6; background: #fafafa; }
+        .card ul { padding-left: 20px; margin: 5px 0; }
+        .vip-tag { color: #e67e22; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="cheatIndicator" class="status-indicator status-yellow" title="Mode Status"></div>
-
-    <h1>Team Generator</h1>
-
-    <div class="container">
-        <p>Список учасників:</p>
-        <textarea id="namesInput" placeholder="Введіть імена (кожне з нового рядка)..."></textarea>
-
-        <div class="settings-grid">
-            <div class="input-group">
-                <label>Кількість команд:</label>
-                <input type="number" id="teamsCount" value="2" min="1">
-            </div>
-            <div class="input-group">
-                <label>Людей в команді:</label>
-                <input type="number" id="teamSize" value="5" min="1">
-            </div>
-        </div>
-
-        <button onclick="processData()">Сформувати команди</button>
-        
-        <div id="vipMsg" class="vip-msg"></div>
-        
-        <div id="statusMsg" class="stats"></div>
-        <div id="errorMsg" class="error"></div>
+    <div class="mode-panel">
+        РЕЖИМ: 
+        <span id="modeDot" class="dot dot-yellow"></span>
+        <span id="modeText">Стандарт (60%)</span>
     </div>
 
-    <div id="result-area"></div>
+    <div class="container">
+        <textarea id="namesInput" placeholder="Введіть імена (Ivanka784, I_Oleg_I та інші)..."></textarea>
+
+        <div class="controls">
+            Команд: <input type="number" id="teamsCount" value="2" min="1">
+            Місць: <input type="number" id="teamSize" value="5" min="1">
+        </div>
+
+        <button onclick="generate()">СФОРМУВАТИ</button>
+
+        <div id="debugBox" class="debug-box">
+            Очікування...<br>
+            Натисніть "Сформувати", щоб побачити деталі.
+        </div>
+    </div>
+
+    <div id="resultArea" class="result-area"></div>
 
     <script>
-        // === СПИСОК ОБРАНИХ ===
-        // Точне написання частин імен, які ми шукаємо
-        const _vipKeywords = ["Ivanka784", "I_Oleg_I"];
+        // === НАЛАШТУВАННЯ ІМЕН (Перевірте кожну літеру!) ===
+        // Скрипт шукає, чи міститься цей текст у рядку. Регістр (великі/малі) не важливий.
+        const VIP_NAMES = ["Ivanka784", "I_Oleg_I"];
+
+        // === ЗМІННІ ===
+        let currentMode = 'yellow'; // 'green', 'yellow', 'red'
         
-        let _currentMode = 'yellow'; // green, yellow, red
-
-        // === КЛАВІАТУРА ===
-        let _keySeqLeft = [], _keySeqRight = [], _keySeqDown = [];
-
+        // === КЕРУВАННЯ (Стрілочки) ===
+        let keys = [];
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') {
-                _keySeqLeft.push(e.key); _keySeqRight = []; _keySeqDown = [];
-                if (_keySeqLeft.length === 3) { setMode('green'); _keySeqLeft = []; }
-            } 
-            else if (e.key === 'ArrowRight') {
-                _keySeqRight.push(e.key); _keySeqLeft = []; _keySeqDown = [];
-                if (_keySeqRight.length === 3) { setMode('red'); _keySeqRight = []; }
-            } 
-            else if (e.key === 'ArrowDown') {
-                _keySeqDown.push(e.key); _keySeqLeft = []; _keySeqRight = [];
-                if (_keySeqDown.length === 3) { setMode('yellow'); _keySeqDown = []; }
+            if (['ArrowLeft', 'ArrowRight', 'ArrowDown'].includes(e.key)) {
+                keys.push(e.key);
+                if (keys.length > 3) keys.shift(); // Тримаємо тільки останні 3
+
+                // Перевірка комбінацій
+                if (keys.join(',') === 'ArrowRight,ArrowRight,ArrowRight') setMode('red');
+                if (keys.join(',') === 'ArrowLeft,ArrowLeft,ArrowLeft') setMode('green');
+                if (keys.join(',') === 'ArrowDown,ArrowDown,ArrowDown') setMode('yellow');
+            } else {
+                keys = [];
             }
-            else { _keySeqLeft = []; _keySeqRight = []; _keySeqDown = []; }
         });
 
         function setMode(mode) {
-            _currentMode = mode;
-            const ind = document.getElementById('cheatIndicator');
-            ind.classList.remove('status-green', 'status-yellow', 'status-red');
-            ind.classList.add('status-' + mode);
+            currentMode = mode;
+            const dot = document.getElementById('modeDot');
+            const text = document.getElementById('modeText');
+            
+            dot.className = 'dot'; // скидання
+            
+            if (mode === 'red') {
+                dot.classList.add('dot-red');
+                text.innerText = "БОГ (100% Разом)";
+            } else if (mode === 'green') {
+                dot.classList.add('dot-green');
+                text.innerText = "Чесний (0% Разом)";
+            } else {
+                dot.classList.add('dot-yellow');
+                text.innerText = "Стандарт (60% Разом)";
+            }
         }
 
-        // === ГОЛОВНА ФУНКЦІЯ ===
-        function processData() {
+        // === ГЕНЕРАЦІЯ ===
+        function generate() {
             const input = document.getElementById('namesInput').value;
-            const targetTeams = parseInt(document.getElementById('teamsCount').value);
-            const targetSize = parseInt(document.getElementById('teamSize').value);
-            const resultArea = document.getElementById('result-area');
-            const errorMsg = document.getElementById('errorMsg');
-            const statusMsg = document.getElementById('statusMsg');
-            const vipMsg = document.getElementById('vipMsg');
+            const teamsCount = parseInt(document.getElementById('teamsCount').value);
+            const teamSize = parseInt(document.getElementById('teamSize').value);
+            const debugBox = document.getElementById('debugBox');
+            const resultArea = document.getElementById('resultArea');
 
             resultArea.innerHTML = '';
-            errorMsg.innerText = '';
-            statusMsg.innerText = '';
-            vipMsg.innerText = '';
-
-            let rawNames = input.split('\n').map(name => name.trim()).filter(name => name !== '');
-
-            if (rawNames.length === 0) {
-                errorMsg.innerText = 'Список імен порожній.';
+            
+            // 1. Очистка і підготовка імен
+            let allNames = input.split('\n').map(n => n.trim()).filter(n => n);
+            
+            if (allNames.length === 0) {
+                debugBox.innerHTML = "❌ Помилка: Список порожній.";
                 return;
             }
 
-            // 1. Вирішуємо, чи працює "Удача"
-            let forceTogether = false;
-            if (_currentMode === 'red') forceTogether = true; // 100%
-            else if (_currentMode === 'green') forceTogether = false; // 0%
-            else if (_currentMode === 'yellow') forceTogether = (Math.random() < 0.6); // 60%
+            // 2. Пошук VIP-ів у списку
+            let detectedVips = [];
+            let normalPeople = [];
 
-            // 2. Підготовка команд
-            let teams = Array.from({ length: targetTeams }, () => []);
-            
-            // 3. ЛОГІКА СКЛЕЮВАННЯ (Якщо активовано)
-            let gluedPlayers = [];
-            let remainingNames = [...rawNames];
-
-            if (forceTogether) {
-                // Шукаємо наших людей
-                remainingNames = remainingNames.filter(name => {
-                    // Перевіряємо, чи містить ім'я ключові слова (Ivanka або Oleg)
-                    const match = _vipKeywords.some(keyword => name.toLowerCase().includes(keyword.toLowerCase()));
-                    if (match) {
-                        gluedPlayers.push(name);
-                        return false; // Забираємо їх із загального списку
-                    }
-                    return true;
-                });
-
-                // Якщо знайшли більше одного, кидаємо їх в одну команду
-                if (gluedPlayers.length > 1) {
-                    // Вибираємо випадкову команду
-                    const luckyTeamIndex = Math.floor(Math.random() * targetTeams);
-                    
-                    // Запихуємо їх туди разом!
-                    teams[luckyTeamIndex].push(...gluedPlayers);
-                    
-                    vipMsg.innerText = `✨ VIP-зв'язок: ${gluedPlayers.join(' + ')}`;
-                } else if (gluedPlayers.length === 1) {
-                    // Якщо знайшли тільки одного, повертаємо його в загальну купу, бо нема з ким клеїти
-                    remainingNames.push(gluedPlayers[0]);
-                    gluedPlayers = [];
+            allNames.forEach(name => {
+                // Перевіряємо, чи це VIP (без урахування регістру)
+                let isVip = VIP_NAMES.some(v => name.toLowerCase().includes(v.toLowerCase()));
+                if (isVip) {
+                    detectedVips.push(name);
+                } else {
+                    normalPeople.push(name);
                 }
+            });
+
+            // 3. Визначення долі (Чи спрацював шанс)
+            let glueThem = false;
+            if (currentMode === 'red') glueThem = true;
+            if (currentMode === 'green') glueThem = false;
+            if (currentMode === 'yellow') glueThem = Math.random() < 0.6;
+
+            // ЗВІТ ДІАГНОСТИКИ
+            let log = `<b>Діагностика:</b><br>`;
+            log += `Режим: ${currentMode.toUpperCase()}<br>`;
+            log += `Знайдено VIP у списку: <b>${detectedVips.length}</b> (Потрібно 2)<br>`;
+            if (detectedVips.length < 2) {
+                 log += `<span style="color:red">⚠️ Увага: Щоб спрацював "клей", потрібно ввести обидва імені! Перевірте написання.</span><br>`;
+                 glueThem = false; // Неможливо склеїти одного
+            } else {
+                 log += `Імена VIP: ${detectedVips.join(', ')}<br>`;
+                 log += `Спрацював "Клей": <b>${glueThem ? "ТАК ✅" : "НІ ❌"}</b><br>`;
+            }
+            debugBox.innerHTML = log;
+
+            // 4. Створення команд
+            let teams = Array.from({length: teamsCount}, () => []);
+
+            // 5. ЛОГІКА РОЗПОДІЛУ
+            if (glueThem) {
+                // Крок А: Кидаємо VIP-ів разом в випадкову команду
+                let randomTeam = Math.floor(Math.random() * teamsCount);
+                teams[randomTeam].push(...detectedVips);
+            } else {
+                // Якщо клей не спрацював, VIP стають звичайними людьми
+                normalPeople.push(...detectedVips);
+                // Перемішуємо їх, щоб вони не йшли підряд
+                shuffle(normalPeople); 
             }
 
-            // 4. Розподіляємо решту
-            shuffleArray(remainingNames);
-
-            let currentTeamIndex = 0;
-            while (remainingNames.length > 0) {
+            // Крок Б: Розподіляємо інших
+            shuffle(normalPeople);
+            
+            let currentTeam = 0;
+            while (normalPeople.length > 0) {
+                // Шукаємо команду з вільним місцем
                 let added = false;
-                
-                for (let i = 0; i < targetTeams; i++) {
-                    // Починаємо шукати місце з поточної команди
-                    let idx = (currentTeamIndex + i) % targetTeams;
-                    
-                    if (teams[idx].length < targetSize) {
-                        teams[idx].push(remainingNames.shift());
-                        currentTeamIndex = idx + 1; 
+                for (let i = 0; i < teamsCount; i++) {
+                    let idx = (currentTeam + i) % teamsCount;
+                    if (teams[idx].length < teamSize) {
+                        teams[idx].push(normalPeople.shift());
+                        currentTeam = idx + 1;
                         added = true;
                         break;
                     }
                 }
-                if (!added) break; // Місць більше немає
+                // Якщо всі команди повні, зупиняємось (решта в запас)
+                if (!added) break;
             }
 
-            // Ті, хто не вліз
-            let reservePlayers = remainingNames;
+            // Запас
+            let reserve = normalPeople;
 
-            // 5. Перемішуємо всередині команд (щоб не було очевидно, хто доданий першим)
-            teams.forEach(team => shuffleArray(team));
-
-            // === ВИВІД ===
-            teams.forEach((team, index) => {
-                renderCard(`Команда ${index + 1}`, team, false, targetSize);
+            // 6. Відображення
+            teams.forEach((team, i) => {
+                // Перемішуємо всередині команди для краси
+                shuffle(team);
+                drawCard(`Команда ${i+1}`, team, teamSize);
             });
 
-            if (reservePlayers.length > 0) {
-                renderCard(`Резерв`, reservePlayers, true, null);
-            }
-            
-            const totalSlots = targetTeams * targetSize;
-            if (rawNames.length > totalSlots) {
-                statusMsg.innerText = `Всього: ${rawNames.length}. Місць: ${totalSlots}. В запасі: ${reservePlayers.length}.`;
-            } else {
-                statusMsg.innerText = `Всього: ${rawNames.length}. Всі в грі.`;
+            if (reserve.length > 0) {
+                drawCard("Резерв", reserve, null, true);
             }
         }
 
-        function shuffleArray(array) {
+        function drawCard(title, members, max, isReserve = false) {
+            let html = `<div class="card ${isReserve ? 'reserve' : ''}"><h3>${title} <small>${max ? members.length+'/'+max : members.length}</small></h3><ul>`;
+            members.forEach(m => {
+                // Підсвітка VIP для наглядності (можна прибрати)
+                let isVip = VIP_NAMES.some(v => m.toLowerCase().includes(v.toLowerCase()));
+                if (isVip) html += `<li class="vip-tag">★ ${m}</li>`;
+                else html += `<li>👤 ${m}</li>`;
+            });
+            html += `</ul></div>`;
+            document.getElementById('resultArea').innerHTML += html;
+        }
+
+        function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [array[i], array[j]] = [array[j], array[i]];
             }
-        }
-
-        function renderCard(title, members, isReserve, maxSize) {
-            const card = document.createElement('div');
-            card.className = isReserve ? 'team-card reserve' : 'team-card';
-            let badge = maxSize ? `<span class="info-badge">${members.length}/${maxSize}</span>` : `<span class="info-badge">${members.length}</span>`;
-            
-            let listHtml = '<ul>';
-            if (members.length === 0) {
-                listHtml += '<li style="color:#999; font-style:italic; padding:10px 0;">Немає учасників</li>';
-            } else {
-                members.forEach(member => listHtml += `<li>👤 ${member}</li>`);
-            }
-            listHtml += '</ul>';
-
-            card.innerHTML = `<h3>${title} ${badge}</h3>${listHtml}`;
-            document.getElementById('result-area').appendChild(card);
         }
     </script>
 </body>
