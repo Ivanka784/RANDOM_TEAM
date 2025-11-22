@@ -26,7 +26,7 @@
 
         h1 { margin-bottom: 20px; color: #2c3e50; }
 
-        /* ІНДИКАТОР ЧИТУ (Кулька) */
+        /* ІНДИКАТОР */
         .status-indicator {
             position: fixed;
             top: 20px;
@@ -40,9 +40,9 @@
             z-index: 1000;
         }
 
-        .status-green { background-color: #27ae60; box-shadow: 0 0 10px #27ae60; } /* Чесно */
-        .status-yellow { background-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; } /* 60% */
-        .status-red { background-color: #c0392b; box-shadow: 0 0 10px #c0392b; }   /* 100% */
+        .status-green { background-color: #27ae60; box-shadow: 0 0 10px #27ae60; } 
+        .status-yellow { background-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; } 
+        .status-red { background-color: #c0392b; box-shadow: 0 0 10px #c0392b; }
 
         .container {
             background-color: var(--card-bg);
@@ -143,7 +143,7 @@
 </head>
 <body>
 
-    <div id="cheatIndicator" class="status-indicator status-yellow" title="Status"></div>
+    <div id="cheatIndicator" class="status-indicator status-yellow" title="Mode Status"></div>
 
     <h1>Team Generator</h1>
 
@@ -171,73 +171,38 @@
     <div id="result-area"></div>
 
     <script>
-        // ==========================================
-        // CONFIG & STATE
-        // ==========================================
+        // === НАЛАШТУВАННЯ VIP ===
         const _vipConfig = ["Ivanka784", "I_Oleg_I"];
         
-        // 'green' = 0%, 'yellow' = 60%, 'red' = 100%
-        let _currentMode = 'yellow'; 
+        let _currentMode = 'yellow'; // 'green', 'yellow', 'red'
 
-        // ==========================================
-        // KEYBOARD LISTENERS (CONTROL MODES)
-        // ==========================================
-        let _keySeqLeft = [];
-        let _keySeqRight = [];
-        let _keySeqDown = [];
+        // === КЕРУВАННЯ КЛАВІАТУРОЮ ===
+        let _keySeqLeft = [], _keySeqRight = [], _keySeqDown = [];
 
         document.addEventListener('keydown', (e) => {
-            // 1. ЛІВО х3 -> GREEN (Чесний)
             if (e.key === 'ArrowLeft') {
-                _keySeqLeft.push(e.key);
-                _keySeqRight = []; _keySeqDown = []; // скидаємо інші
-                if (_keySeqLeft.length === 3) {
-                    setMode('green');
-                    _keySeqLeft = [];
-                }
+                _keySeqLeft.push(e.key); _keySeqRight = []; _keySeqDown = [];
+                if (_keySeqLeft.length === 3) { setMode('green'); _keySeqLeft = []; }
             } 
-            // 2. ПРАВО х3 -> RED (Режим Бога 100%)
             else if (e.key === 'ArrowRight') {
-                _keySeqRight.push(e.key);
-                _keySeqLeft = []; _keySeqDown = [];
-                if (_keySeqRight.length === 3) {
-                    setMode('red');
-                    _keySeqRight = [];
-                }
+                _keySeqRight.push(e.key); _keySeqLeft = []; _keySeqDown = [];
+                if (_keySeqRight.length === 3) { setMode('red'); _keySeqRight = []; }
             } 
-            // 3. ВНИЗ х3 -> YELLOW (Стандарт 60/40)
             else if (e.key === 'ArrowDown') {
-                _keySeqDown.push(e.key);
-                _keySeqLeft = []; _keySeqRight = [];
-                if (_keySeqDown.length === 3) {
-                    setMode('yellow');
-                    _keySeqDown = [];
-                }
+                _keySeqDown.push(e.key); _keySeqLeft = []; _keySeqRight = [];
+                if (_keySeqDown.length === 3) { setMode('yellow'); _keySeqDown = []; }
             }
-            else {
-                // Якщо натиснули щось інше - все скидається
-                _keySeqLeft = [];
-                _keySeqRight = [];
-                _keySeqDown = [];
-            }
+            else { _keySeqLeft = []; _keySeqRight = []; _keySeqDown = []; }
         });
 
         function setMode(mode) {
             _currentMode = mode;
-            const indicator = document.getElementById('cheatIndicator');
-            
-            // Видаляємо всі класи кольорів
-            indicator.classList.remove('status-green', 'status-yellow', 'status-red');
-            
-            // Додаємо потрібний
-            if (mode === 'green') indicator.classList.add('status-green');
-            if (mode === 'yellow') indicator.classList.add('status-yellow');
-            if (mode === 'red') indicator.classList.add('status-red');
+            const ind = document.getElementById('cheatIndicator');
+            ind.classList.remove('status-green', 'status-yellow', 'status-red');
+            ind.classList.add('status-' + mode);
         }
 
-        // ==========================================
-        // LOGIC
-        // ==========================================
+        // === ОСНОВНА ЛОГІКА ===
         function processData() {
             const input = document.getElementById('namesInput').value;
             const targetTeams = parseInt(document.getElementById('teamsCount').value);
@@ -257,65 +222,83 @@
                 return;
             }
 
-            // Визначаємо шанс підкрутки на основі режиму
-            let currentChance = 0.6; // Yellow default
-            if (_currentMode === 'green') currentChance = 0;
-            if (_currentMode === 'red') currentChance = 1.0;
+            // 1. Створюємо порожні команди
+            let teams = Array.from({ length: targetTeams }, () => []);
+            let remainingNames = [...rawNames];
 
-            let priorityQueue = [];
-            let standardQueue = [];
+            // 2. Визначаємо, чи спрацювала "Удача" (щоб бути РАЗОМ)
+            let isLucky = false;
+            if (_currentMode === 'red') isLucky = true; // 100%
+            else if (_currentMode === 'green') isLucky = false; // 0%
+            else if (_currentMode === 'yellow') isLucky = (Math.random() < 0.6); // 60%
 
-            rawNames.forEach(name => {
-                const isVip = _vipConfig.some(vip => name.toLowerCase().includes(vip.toLowerCase()));
-                
-                if (isVip) {
-                    // Кидаємо кубик
-                    if (Math.random() < currentChance) {
-                        priorityQueue.push(name);
-                    } else {
-                        standardQueue.push(name);
+            // 3. Обробка VIP-ів
+            if (isLucky) {
+                // Знаходимо VIP-ів у списку
+                let vipGroup = [];
+                remainingNames = remainingNames.filter(name => {
+                    const isVip = _vipConfig.some(vip => name.toLowerCase().includes(vip.toLowerCase()));
+                    if (isVip) {
+                        vipGroup.push(name);
+                        return false; // Видаляємо з загального списку
                     }
-                } else {
-                    standardQueue.push(name);
+                    return true;
+                });
+
+                // Якщо знайшли хоча б одного, садимо їх РАЗОМ
+                if (vipGroup.length > 0) {
+                    const randomTeamIndex = Math.floor(Math.random() * targetTeams);
+                    
+                    // Перевіряємо, чи влізуть вони всі в цю команду (про всяк випадок)
+                    // Якщо команда замала для всіх VIP, то вони займуть скільки зможуть
+                    vipGroup.forEach(vip => {
+                        if (teams[randomTeamIndex].length < targetSize) {
+                            teams[randomTeamIndex].push(vip);
+                        } else {
+                            // Якщо не влізли в обрану команду, шукаємо іншу з місцем
+                            for(let i=0; i<targetTeams; i++) {
+                                if (teams[i].length < targetSize) {
+                                    teams[i].push(vip);
+                                    break;
+                                }
+                            }
+                        }
+                    });
                 }
-            });
-
-            shuffleArray(priorityQueue);
-            shuffleArray(standardQueue);
-
-            let masterList = [...priorityQueue, ...standardQueue];
-            
-            const totalSlots = targetTeams * targetSize;
-            let activePlayers = [];
-            let reservePlayers = [];
-
-            if (masterList.length > totalSlots) {
-                activePlayers = masterList.slice(0, totalSlots);
-                reservePlayers = masterList.slice(totalSlots);
-            } else {
-                activePlayers = masterList;
             }
 
-            shuffleArray(activePlayers);
+            // 4. Розподіл всіх інших (Рандом + Рівномірність)
+            shuffleArray(remainingNames);
 
-            // Розподіл по командах
-            let teams = Array.from({ length: targetTeams }, () => []);
+            // Використовуємо розумний цикл, щоб заповнювати дірки в командах
+            let currentTeamIndex = 0;
             
-            activePlayers.forEach((player, index) => {
-                const teamIndex = index % targetTeams;
-                if (teams[teamIndex].length < targetSize) {
-                    teams[teamIndex].push(player);
-                } else {
-                    for (let i = 0; i < targetTeams; i++) {
-                        if (teams[i].length < targetSize) {
-                            teams[i].push(player);
-                            break;
-                        }
+            while (remainingNames.length > 0) {
+                let added = false;
+                
+                // Пробуємо знайти місце, починаючи з поточної команди по колу
+                for (let i = 0; i < targetTeams; i++) {
+                    let actualIndex = (currentTeamIndex + i) % targetTeams;
+                    
+                    if (teams[actualIndex].length < targetSize) {
+                        teams[actualIndex].push(remainingNames.shift());
+                        currentTeamIndex = actualIndex + 1; // Наступного кидаємо в наступну команду
+                        added = true;
+                        break;
                     }
                 }
-            });
 
-            // Вивід
+                // Якщо місць ніде немає (всі команди повні), зупиняємось
+                if (!added) break;
+            }
+
+            // Ті, хто не вліз — в запас
+            let reservePlayers = remainingNames;
+
+            // 5. Перемішуємо людей ВСЕРЕДИНІ кожної команди (щоб VIP не були завжди згори списку)
+            teams.forEach(team => shuffleArray(team));
+
+            // === ВІДМАЛЬОВКА ===
             teams.forEach((team, index) => {
                 renderCard(`Команда ${index + 1}`, team, false, targetSize);
             });
@@ -324,6 +307,7 @@
                 renderCard(`Резерв`, reservePlayers, true, null);
             }
             
+            const totalSlots = targetTeams * targetSize;
             if (rawNames.length > totalSlots) {
                 statusMsg.innerText = `Всього: ${rawNames.length}. Місць: ${totalSlots}. В запасі: ${reservePlayers.length}.`;
             } else {
