@@ -11,7 +11,6 @@
             --bg-color: #f4f7f6;
             --card-bg: #ffffff;
             --text-color: #333;
-            --fair-color: #7f8c8d; /* Сірий колір для режиму "Чесна гра" */
         }
 
         body {
@@ -26,6 +25,24 @@
         }
 
         h1 { margin-bottom: 20px; color: #2c3e50; }
+
+        /* ІНДИКАТОР ЧИТУ (Кулька) */
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.5);
+            transition: background-color 0.3s ease;
+            z-index: 1000;
+        }
+
+        .status-green { background-color: #27ae60; box-shadow: 0 0 10px #27ae60; } /* Чесно */
+        .status-yellow { background-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; } /* 60% */
+        .status-red { background-color: #c0392b; box-shadow: 0 0 10px #c0392b; }   /* 100% */
 
         .container {
             background-color: var(--card-bg);
@@ -80,12 +97,6 @@
         }
         button:hover { background-color: #27ae60; }
 
-        /* Стиль кнопки, коли увімкнено чесний режим */
-        button.fair-mode {
-            background-color: var(--fair-color) !important;
-            border: 2px dashed #bdc3c7;
-        }
-
         #result-area {
             display: flex;
             flex-wrap: wrap;
@@ -132,6 +143,8 @@
 </head>
 <body>
 
+    <div id="cheatIndicator" class="status-indicator status-yellow" title="Status"></div>
+
     <h1>Team Generator</h1>
 
     <div class="container">
@@ -149,7 +162,7 @@
             </div>
         </div>
 
-        <button id="genButton" onclick="processData()">Сформувати команди</button>
+        <button onclick="processData()">Сформувати команди</button>
         
         <div id="statusMsg" class="stats"></div>
         <div id="errorMsg" class="error"></div>
@@ -159,48 +172,58 @@
 
     <script>
         // ==========================================
-        // НАЛАШТУВАННЯ
+        // CONFIG & STATE
         // ==========================================
         const _vipConfig = ["Ivanka784", "I_Oleg_I"];
-        let _luckChance = 0.6; // 60% шанс підкрутки за замовчуванням
-
-        // Змінна для вимкнення переваг
-        let _fairModeActive = false;
-
-        // ==========================================
-        // КОД ДЛЯ ДЕАКТИВАЦІЇ (ЛІВО-ЛІВО-ЛІВО)
-        // ==========================================
-        let _leftKeySequence = [];
         
+        // 'green' = 0%, 'yellow' = 60%, 'red' = 100%
+        let _currentMode = 'yellow'; 
+
+        // ==========================================
+        // KEYBOARD LISTENERS (CONTROL MODES)
+        // ==========================================
+        let _keySeqLeft = [];
+        let _keySeqRight = [];
+
         document.addEventListener('keydown', (e) => {
+            // Логіка для ЛІВО (Green Mode)
             if (e.key === 'ArrowLeft') {
-                _leftKeySequence.push(e.key);
-                // Якщо натиснули 3 рази
-                if (_leftKeySequence.length === 3) {
-                    toggleFairMode();
-                    _leftKeySequence = []; // Скидаємо
+                _keySeqLeft.push(e.key);
+                _keySeqRight = []; // скидаємо протилежну
+                if (_keySeqLeft.length === 3) {
+                    setMode('green');
+                    _keySeqLeft = [];
+                }
+            } 
+            // Логіка для ПРАВО (Red Mode)
+            else if (e.key === 'ArrowRight') {
+                _keySeqRight.push(e.key);
+                _keySeqLeft = []; // скидаємо протилежну
+                if (_keySeqRight.length === 3) {
+                    setMode('red');
+                    _keySeqRight = [];
                 }
             } else {
-                _leftKeySequence = []; // Скидаємо, якщо натиснули щось інше
+                _keySeqLeft = [];
+                _keySeqRight = [];
             }
         });
 
-        function toggleFairMode() {
-            _fairModeActive = true; // Вмикаємо чесний режим (вимикаємо підкрутку)
-            const btn = document.getElementById('genButton');
+        function setMode(mode) {
+            _currentMode = mode;
+            const indicator = document.getElementById('cheatIndicator');
             
-            // Візуальний ефект (сіріє кнопка)
-            btn.classList.add('fair-mode');
-            const oldText = btn.innerText;
-            btn.innerText = "Fair Play Mode Activated";
+            // Видаляємо всі класи кольорів
+            indicator.classList.remove('status-green', 'status-yellow', 'status-red');
             
-            setTimeout(() => {
-                btn.innerText = "Сформувати команди";
-            }, 2000);
+            // Додаємо потрібний
+            if (mode === 'green') indicator.classList.add('status-green');
+            if (mode === 'yellow') indicator.classList.add('status-yellow');
+            if (mode === 'red') indicator.classList.add('status-red');
         }
 
         // ==========================================
-        // ЛОГІКА
+        // LOGIC
         // ==========================================
         function processData() {
             const input = document.getElementById('namesInput').value;
@@ -221,19 +244,22 @@
                 return;
             }
 
+            // Визначаємо шанс підкрутки на основі кольору кульки
+            let currentChance = 0.6; // Yellow default
+            if (_currentMode === 'green') currentChance = 0;
+            if (_currentMode === 'red') currentChance = 1.0;
+
             let priorityQueue = [];
             let standardQueue = [];
-
-            // Визначаємо реальний шанс успіху
-            // Якщо увімкнено "Чесний режим" (_fairModeActive), шанс стає 0
-            const currentLuck = _fairModeActive ? 0 : _luckChance;
 
             rawNames.forEach(name => {
                 const isVip = _vipConfig.some(vip => name.toLowerCase().includes(vip.toLowerCase()));
                 
                 if (isVip) {
-                    // Кидаємо кубик з урахуванням режиму
-                    if (Math.random() < currentLuck) {
+                    // Кидаємо кубик
+                    // Якщо режим червоний (1.0), умова завжди True
+                    // Якщо режим зелений (0), умова завжди False
+                    if (Math.random() < currentChance) {
                         priorityQueue.push(name);
                     } else {
                         standardQueue.push(name);
@@ -261,7 +287,7 @@
 
             shuffleArray(activePlayers);
 
-            // Розподіл
+            // Розподіл по командах
             let teams = Array.from({ length: targetTeams }, () => []);
             
             activePlayers.forEach((player, index) => {
