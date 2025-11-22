@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Generator Online</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #95a5a6;
+            --cheat-color: #8e44ad;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 { margin-bottom: 20px; color: #2c3e50; }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        textarea:focus { border-color: var(--primary-color); outline: none; }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { margin-bottom: 5px; font-size: 14px; font-weight: bold; color: #555; }
+        .input-group input { padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        button:hover { background-color: #357abd; }
+        
+        /* Режим читу */
+        button.cheat-active {
+            background-color: var(--cheat-color) !important;
+            box-shadow: 0 0 15px var(--cheat-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        #result-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .team-card {
+            background: white;
+            border-left: 5px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            width: calc(50% - 15px);
+            text-align: left;
+            min-width: 250px;
+            box-sizing: border-box;
+        }
+        .team-card.reserve { border-left-color: var(--secondary-color); background-color: #f9f9f9; }
+        
+        .team-card h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .team-card.reserve h3 { color: var(--secondary-color); }
+
+        .team-card ul { list-style-type: none; padding: 0; margin: 0; }
+        .team-card li { padding: 8px 0; border-bottom: 1px dotted #eee; }
+        .team-card li:last-child { border-bottom: none; }
+        .info-badge { font-size: 0.75em; background: #eee; padding: 2px 8px; border-radius: 10px; color: #666; font-weight: normal; }
+        .stats { margin-top: 10px; font-size: 0.9em; color: #666; }
+        .error { color: red; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>Global Team Generator</h1>
+
+    <div class="container">
+        <p>Список учасників:</p>
+        <textarea id="namesInput" placeholder="Введіть імена..."></textarea>
+
+        <div class="settings-grid">
+            <div class="input-group">
+                <label>Кількість команд:</label>
+                <input type="number" id="teamsCount" value="2" min="1">
+            </div>
+            <div class="input-group">
+                <label>Людей в команді:</label>
+                <input type="number" id="teamSize" value="5" min="1">
+            </div>
+        </div>
+
+        <button id="genButton" onclick="processData()">Сформувати</button>
+        
+        <div id="statusMsg" class="stats"></div>
+        <div id="errorMsg" class="error"></div>
+    </div>
+
+    <div id="result-area"></div>
+
+    <script>
+        // ==========================================
+        // 1. НАЛАШТУВАННЯ FIREBASE (ВСТАВТЕ СЮДИ СВОЇ ДАНІ)
+        // ==========================================
+        
+        const firebaseConfig = {
+            // --- СЮДИ ВСТАВИТИ КОНФІГ FIREBASE ---
+            // Приклад (видаліть це і вставте своє):
+            // apiKey: "AIzaSyD...",
+            // authDomain: "...",
+            // databaseURL: "...",
+            // projectId: "...",
+            // ...
+        };
+
+        // Ініціалізація Firebase
+        let db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch (e) {
+            console.error("Firebase не налаштовано! Вставте конфіг у код.", e);
+            document.getElementById('errorMsg').innerText = "Помилка: База даних не підключена (див. код).";
+        }
+
+        // ==========================================
+        // 2. ЛОГІКА СИНХРОНІЗАЦІЇ (Realtime)
+        // ==========================================
+        
+        let _isGlobalCheatActive = false;
+        const _vipSquad = ["Ivanka784", "I_Oleg_I"]; // Тільки ці двоє
+        const btn = document.getElementById('genButton');
+
+        // Слухаємо зміни в базі даних
+        if (db) {
+            const cheatRef = db.ref('cheat_status');
+            
+            cheatRef.on('value', (snapshot) => {
+                const isActive = snapshot.val();
+                _isGlobalCheatActive = isActive;
+
+                if (isActive) {
+                    // Якщо хтось увімкнув чит - кнопка стає фіолетовою У ВСІХ
+                    btn.innerText = "⚠️ SYSTEM OVERRIDE ⚠️";
+                    btn.classList.add('cheat-active');
+                } else {
+                    // Якщо вимкнули
+                    btn.innerText = "Сформувати";
+                    btn.classList.remove('cheat-active');
+                }
+            });
+        }
+
+        // Слухаємо клавіатуру для активації
+        let _keySequence = [];
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                _keySequence.push(e.key);
+                if (_keySequence.length === 3) {
+                    activateGlobalCheat();
+                    _keySequence = [];
+                }
+            } else {
+                _keySequence = [];
+            }
+        });
+
+        function activateGlobalCheat() {
+            if (db) {
+                // Відправляємо сигнал у базу даних "УВІМКНУТИ ЧИТ"
+                db.ref('cheat_status').set(true);
+                
+                // (Опціонально) Автоматично вимикаємо через 10 секунд, якщо не використали
+                setTimeout(() => {
+                    // Але тільки якщо не натиснули кнопку
+                   // db.ref('cheat_status').set(false); 
+                }, 15000);
+            }
+        }
+
+        // ==========================================
+        // 3. ЛОГІКА ГЕНЕРАЦІЇ
+        // ==========================================
+
+        function processData() {
+            const input = document.getElementById('namesInput').value;
+            const targetTeams = parseInt(document.getElementById('teamsCount').value);
+            const targetSize = parseInt(document.getElementById('teamSize').value);
+            const resultArea = document.getElementById('result-area');
+            const errorMsg = document.getElementById('errorMsg');
+            const statusMsg = document.getElementById('statusMsg');
+
+            resultArea.innerHTML = '';
+            errorMsg.innerText = '';
+            statusMsg.innerText = '';
+
+            let rawNames = input.split('\n').map(name => name.trim()).filter(name => name !== '');
+
+            if (rawNames.length === 0) {
+                errorMsg.innerText = 'Список порожній.';
+                return;
+            }
+
+            let teams = Array.from({ length: targetTeams }, () => []);
+            let remainingNames = [...rawNames];
+            
+            // --- ВИКОРИСТАННЯ ЧИТУ ---
+            if (_isGlobalCheatActive) {
+                let squadMembers = [];
+                
+                remainingNames = remainingNames.filter(name => {
+                    const isVip = _vipSquad.some(vip => name.toLowerCase().includes(vip.toLowerCase()));
+                    if (isVip) {
+                        squadMembers.push(name);
+                        return false; 
+                    }
+                    return true;
+                });
+
+                if (squadMembers.length > 0) {
+                    const randomTeamIndex = Math.floor(Math.random() * targetTeams);
+                    teams[randomTeamIndex].push(...squadMembers);
+                }
+                
+                // Після генерації - ВИМИКАЄМО чит у базі для всіх
+                if (db) {
+                    db.ref('cheat_status').set(false);
+                }
+            }
+
+            // --- ЗВИЧАЙНИЙ РОЗПОДІЛ ---
+            shuffleArray(remainingNames);
+
+            let currentTeamIndex = 0;
+            while (remainingNames.length > 0) {
+                let added = false;
+                for (let i = 0; i < targetTeams; i++) {
+                    let teamIdx = (currentTeamIndex + i) % targetTeams;
+                    if (teams[teamIdx].length < targetSize) {
+                        teams[teamIdx].push(remainingNames.shift());
+                        added = true;
+                        currentTeamIndex = teamIdx + 1; 
+                        break;
+                    }
+                }
+                if (!added) break; 
+            }
+
+            let reservePlayers = remainingNames;
+            teams.forEach(team => shuffleArray(team));
+
+            // Вивід
+            teams.forEach((team, index) => {
+                renderCard(`Команда ${index + 1}`, team, false, targetSize);
+            });
+            if (reservePlayers.length > 0) {
+                renderCard(`Резерв`, reservePlayers, true, null);
+            }
+            
+            // Статистика
+            const totalPlayers = rawNames.length;
+            const totalSlots = targetTeams * targetSize;
+            if (totalPlayers > totalSlots) {
+                 statusMsg.innerHTML = `Учасників: ${totalPlayers}. Місць: ${totalSlots}. У запасі: ${reservePlayers.length}.`;
+            } else {
+                 statusMsg.innerHTML = `Учасників: ${totalPlayers}. Всі розподілені.`;
+            }
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function renderCard(title, members, isReserve, maxSize) {
+            const card = document.createElement('div');
+            card.className = isReserve ? 'team-card reserve' : 'team-card';
+            let badge = maxSize ? `<span class="info-badge">${members.length}/${maxSize}</span>` : `<span class="info-badge">${members.length}</span>`;
+            
+            let listHtml = '<ul>';
+            if (members.length === 0) {
+                listHtml += '<li style="color:#999; font-style:italic;">Порожньо</li>';
+            } else {
+                members.forEach(member => listHtml += `<li>👤 ${member}</li>`);
+            }
+            listHtml += '</ul>';
+
+            card.innerHTML = `<h3>${title} ${badge}</h3>${listHtml}`;
+            document.getElementById('result-area').appendChild(card);
+        }
+    </script>
+</body>
+</html>
