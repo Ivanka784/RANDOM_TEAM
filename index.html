@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Generator</title>
+    <title>Team Generator (Pro)</title>
     <style>
         :root {
             --primary-color: #2ecc71;
@@ -31,18 +31,24 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            width: 15px;
-            height: 15px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             box-shadow: 0 0 5px rgba(0,0,0,0.2);
-            border: 2px solid rgba(255,255,255,0.5);
-            transition: background-color 0.3s ease;
+            border: 3px solid rgba(255,255,255,0.8);
+            transition: all 0.3s ease;
             z-index: 1000;
         }
 
-        .status-green { background-color: #27ae60; box-shadow: 0 0 10px #27ae60; } 
-        .status-yellow { background-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; } 
-        .status-red { background-color: #c0392b; box-shadow: 0 0 10px #c0392b; }
+        .status-green { background-color: #27ae60; box-shadow: 0 0 15px #27ae60; } 
+        .status-yellow { background-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; } 
+        .status-red { background-color: #e74c3c; box-shadow: 0 0 20px #c0392b; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
 
         .container {
             background-color: var(--card-bg);
@@ -138,6 +144,7 @@
         .team-card li:last-child { border-bottom: none; }
 
         .stats { margin-top: 10px; font-size: 0.9em; color: #666; }
+        .vip-msg { color: #e67e22; font-weight: bold; margin-top: 5px; font-size: 0.9em; min-height: 1.2em;}
         .error { color: #e74c3c; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
@@ -149,7 +156,7 @@
 
     <div class="container">
         <p>Список учасників:</p>
-        <textarea id="namesInput" placeholder="Вставте список імен..."></textarea>
+        <textarea id="namesInput" placeholder="Введіть імена (кожне з нового рядка)..."></textarea>
 
         <div class="settings-grid">
             <div class="input-group">
@@ -164,6 +171,8 @@
 
         <button onclick="processData()">Сформувати команди</button>
         
+        <div id="vipMsg" class="vip-msg"></div>
+        
         <div id="statusMsg" class="stats"></div>
         <div id="errorMsg" class="error"></div>
     </div>
@@ -171,12 +180,13 @@
     <div id="result-area"></div>
 
     <script>
-        // === НАЛАШТУВАННЯ VIP ===
-        const _vipConfig = ["Ivanka784", "I_Oleg_I"];
+        // === СПИСОК ОБРАНИХ ===
+        // Точне написання частин імен, які ми шукаємо
+        const _vipKeywords = ["Ivanka784", "I_Oleg_I"];
         
-        let _currentMode = 'yellow'; // 'green', 'yellow', 'red'
+        let _currentMode = 'yellow'; // green, yellow, red
 
-        // === КЕРУВАННЯ КЛАВІАТУРОЮ ===
+        // === КЛАВІАТУРА ===
         let _keySeqLeft = [], _keySeqRight = [], _keySeqDown = [];
 
         document.addEventListener('keydown', (e) => {
@@ -202,7 +212,7 @@
             ind.classList.add('status-' + mode);
         }
 
-        // === ОСНОВНА ЛОГІКА ===
+        // === ГОЛОВНА ФУНКЦІЯ ===
         function processData() {
             const input = document.getElementById('namesInput').value;
             const targetTeams = parseInt(document.getElementById('teamsCount').value);
@@ -210,10 +220,12 @@
             const resultArea = document.getElementById('result-area');
             const errorMsg = document.getElementById('errorMsg');
             const statusMsg = document.getElementById('statusMsg');
+            const vipMsg = document.getElementById('vipMsg');
 
             resultArea.innerHTML = '';
             errorMsg.innerText = '';
             statusMsg.innerText = '';
+            vipMsg.innerText = '';
 
             let rawNames = input.split('\n').map(name => name.trim()).filter(name => name !== '');
 
@@ -222,83 +234,75 @@
                 return;
             }
 
-            // 1. Створюємо порожні команди
+            // 1. Вирішуємо, чи працює "Удача"
+            let forceTogether = false;
+            if (_currentMode === 'red') forceTogether = true; // 100%
+            else if (_currentMode === 'green') forceTogether = false; // 0%
+            else if (_currentMode === 'yellow') forceTogether = (Math.random() < 0.6); // 60%
+
+            // 2. Підготовка команд
             let teams = Array.from({ length: targetTeams }, () => []);
+            
+            // 3. ЛОГІКА СКЛЕЮВАННЯ (Якщо активовано)
+            let gluedPlayers = [];
             let remainingNames = [...rawNames];
 
-            // 2. Визначаємо, чи спрацювала "Удача" (щоб бути РАЗОМ)
-            let isLucky = false;
-            if (_currentMode === 'red') isLucky = true; // 100%
-            else if (_currentMode === 'green') isLucky = false; // 0%
-            else if (_currentMode === 'yellow') isLucky = (Math.random() < 0.6); // 60%
-
-            // 3. Обробка VIP-ів
-            if (isLucky) {
-                // Знаходимо VIP-ів у списку
-                let vipGroup = [];
+            if (forceTogether) {
+                // Шукаємо наших людей
                 remainingNames = remainingNames.filter(name => {
-                    const isVip = _vipConfig.some(vip => name.toLowerCase().includes(vip.toLowerCase()));
-                    if (isVip) {
-                        vipGroup.push(name);
-                        return false; // Видаляємо з загального списку
+                    // Перевіряємо, чи містить ім'я ключові слова (Ivanka або Oleg)
+                    const match = _vipKeywords.some(keyword => name.toLowerCase().includes(keyword.toLowerCase()));
+                    if (match) {
+                        gluedPlayers.push(name);
+                        return false; // Забираємо їх із загального списку
                     }
                     return true;
                 });
 
-                // Якщо знайшли хоча б одного, садимо їх РАЗОМ
-                if (vipGroup.length > 0) {
-                    const randomTeamIndex = Math.floor(Math.random() * targetTeams);
+                // Якщо знайшли більше одного, кидаємо їх в одну команду
+                if (gluedPlayers.length > 1) {
+                    // Вибираємо випадкову команду
+                    const luckyTeamIndex = Math.floor(Math.random() * targetTeams);
                     
-                    // Перевіряємо, чи влізуть вони всі в цю команду (про всяк випадок)
-                    // Якщо команда замала для всіх VIP, то вони займуть скільки зможуть
-                    vipGroup.forEach(vip => {
-                        if (teams[randomTeamIndex].length < targetSize) {
-                            teams[randomTeamIndex].push(vip);
-                        } else {
-                            // Якщо не влізли в обрану команду, шукаємо іншу з місцем
-                            for(let i=0; i<targetTeams; i++) {
-                                if (teams[i].length < targetSize) {
-                                    teams[i].push(vip);
-                                    break;
-                                }
-                            }
-                        }
-                    });
+                    // Запихуємо їх туди разом!
+                    teams[luckyTeamIndex].push(...gluedPlayers);
+                    
+                    vipMsg.innerText = `✨ VIP-зв'язок: ${gluedPlayers.join(' + ')}`;
+                } else if (gluedPlayers.length === 1) {
+                    // Якщо знайшли тільки одного, повертаємо його в загальну купу, бо нема з ким клеїти
+                    remainingNames.push(gluedPlayers[0]);
+                    gluedPlayers = [];
                 }
             }
 
-            // 4. Розподіл всіх інших (Рандом + Рівномірність)
+            // 4. Розподіляємо решту
             shuffleArray(remainingNames);
 
-            // Використовуємо розумний цикл, щоб заповнювати дірки в командах
             let currentTeamIndex = 0;
-            
             while (remainingNames.length > 0) {
                 let added = false;
                 
-                // Пробуємо знайти місце, починаючи з поточної команди по колу
                 for (let i = 0; i < targetTeams; i++) {
-                    let actualIndex = (currentTeamIndex + i) % targetTeams;
+                    // Починаємо шукати місце з поточної команди
+                    let idx = (currentTeamIndex + i) % targetTeams;
                     
-                    if (teams[actualIndex].length < targetSize) {
-                        teams[actualIndex].push(remainingNames.shift());
-                        currentTeamIndex = actualIndex + 1; // Наступного кидаємо в наступну команду
+                    if (teams[idx].length < targetSize) {
+                        teams[idx].push(remainingNames.shift());
+                        currentTeamIndex = idx + 1; 
                         added = true;
                         break;
                     }
                 }
-
-                // Якщо місць ніде немає (всі команди повні), зупиняємось
-                if (!added) break;
+                if (!added) break; // Місць більше немає
             }
 
-            // Ті, хто не вліз — в запас
+            // Ті, хто не вліз
             let reservePlayers = remainingNames;
 
-            // 5. Перемішуємо людей ВСЕРЕДИНІ кожної команди (щоб VIP не були завжди згори списку)
+            // 5. Перемішуємо всередині команд (щоб не було очевидно, хто доданий першим)
             teams.forEach(team => shuffleArray(team));
 
-            // === ВІДМАЛЬОВКА ===
+            // === ВИВІД ===
             teams.forEach((team, index) => {
                 renderCard(`Команда ${index + 1}`, team, false, targetSize);
             });
